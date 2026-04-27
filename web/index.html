@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BGP Path Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>BGP Path Simulator</h1>
+    <p>Client-side BGP propagation powered by WebAssembly</p>
+  </header>
+
+  <main>
+    <div id="loading-bar"></div>
+
+    <div class="card">
+      <h2>Inputs</h2>
+      <form id="sim-form">
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="topo-file">CAIDA Topology File <span class="optional">(required)</span></label>
+            <input type="file" id="topo-file" accept=".txt,.gz" required />
+            <span class="hint">Pipe-delimited relationship file, e.g. <code>CAIDAASGraphCollector_*.txt</code></span>
+          </div>
+
+          <div class="field">
+            <label for="anns-file">Announcements CSV <span class="optional">(required)</span></label>
+            <input type="file" id="anns-file" accept=".csv,.txt" required />
+            <span class="hint">Columns: <code>seed_asn, prefix, rov_invalid</code></span>
+          </div>
+
+          <div class="field">
+            <label for="target-asn">Target ASN <span class="optional">(required)</span></label>
+            <input type="number" id="target-asn" min="1" max="4294967295"
+                   placeholder="e.g. 15830" required />
+            <span class="hint">Show this AS's routing table after propagation</span>
+          </div>
+
+          <div class="field">
+            <label for="rov-input">ROV-Deploying ASNs <span class="optional">(optional)</span></label>
+            <textarea id="rov-input" placeholder="One ASN per line&#10;# Lines starting with # are ignored"></textarea>
+            <span class="hint">ASNs that will drop ROV-invalid announcements</span>
+          </div>
+
+        </div>
+
+        <div class="btn-row">
+          <button type="submit" id="run-btn" disabled>Loading WASM…</button>
+          <span id="status">Initializing simulator…</span>
+        </div>
+      </form>
+    </div>
+
+    <div class="card" id="results-card">
+      <div class="results-meta">
+        <h2>Results</h2>
+        <span class="badge" id="result-count" style="display:none"></span>
+      </div>
+      <div class="table-wrap" id="table-wrap">
+        <div class="empty-state" id="empty-state">
+          Run a simulation to see results here.
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="wasm/bgp_simulator.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

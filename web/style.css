@@ -1,0 +1,203 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    line-height: 1.5;
+}
+
+header {
+    background: #1a2744;
+    color: #fff;
+    padding: 1.25rem 2rem;
+}
+
+header h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: 0.02em; }
+header p  { font-size: 0.85rem; color: #9aadcc; margin-top: 0.2rem; }
+
+main {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    padding: 1.5rem;
+}
+
+.card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.field.full { grid-column: 1 / -1; }
+
+label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #555;
+}
+
+label .optional {
+    font-weight: 400;
+    color: #999;
+}
+
+input[type="file"],
+input[type="number"],
+textarea {
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.9rem;
+    width: 100%;
+    transition: border-color .15s;
+    background: #fafafa;
+}
+
+input[type="file"] { padding: 0.35rem 0.5rem; cursor: pointer; }
+input[type="file"]:hover { border-color: #3b6bdc; }
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: monospace;
+    font-size: 0.82rem;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: #3b6bdc;
+    box-shadow: 0 0 0 3px rgba(59,107,220,.12);
+}
+
+.hint { font-size: 0.75rem; color: #888; margin-top: 0.15rem; }
+
+.btn-row { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+
+button {
+    background: #1a2744;
+    color: #fff;
+    border: none;
+    padding: 0.6rem 1.4rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+button:hover:not(:disabled) { background: #253766; }
+button:disabled { background: #a0a8bb; cursor: not-allowed; }
+
+#status {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+#status.error { color: #c0392b; font-weight: 500; }
+#status.ok    { color: #27ae60; }
+
+/* Results */
+.results-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.75rem;
+}
+
+.results-meta h2 { border: none; padding: 0; margin: 0; }
+
+.badge {
+    font-size: 0.78rem;
+    background: #eef2ff;
+    color: #3b6bdc;
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    font-weight: 500;
+}
+
+.table-wrap { overflow-x: auto; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+thead th {
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    background: #f0f4f8;
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+    border-bottom: 2px solid #e0e6ef;
+}
+
+tbody tr:nth-child(even) { background: #f9fafb; }
+
+tbody td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+    word-break: break-word;
+}
+
+.as-path {
+    font-family: monospace;
+    font-size: 0.82rem;
+    color: #2c3e50;
+}
+
+.recv-badge {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+.recv-ORIGIN   { background: #d5f5e3; color: #1a7a4a; }
+.recv-CUSTOMER { background: #d6eaf8; color: #1a5f8f; }
+.recv-PEER     { background: #fdebd0; color: #a04000; }
+.recv-PROVIDER { background: #f9ebea; color: #922b21; }
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+#loading-bar {
+    height: 3px;
+    background: linear-gradient(90deg, #3b6bdc 0%, #6a9eff 50%, #3b6bdc 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 99px;
+    margin-bottom: 1.5rem;
+    display: none;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
