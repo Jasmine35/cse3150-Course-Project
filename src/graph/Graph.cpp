@@ -15,8 +15,12 @@ Graph::Graph(const std::string& filename) {
     auto relationships = GraphParser::parse(filename);
     buildRelationships(relationships);
     detectCycles();
+    assignRanks();
+}
 
-    //assign ranks after building
+Graph::Graph(const std::vector<ASRelationship>& relationships) {
+    buildRelationships(relationships);
+    detectCycles();
     assignRanks();
 }
 
@@ -252,32 +256,61 @@ void Graph::dumpCSV(const std::string& filename) const {
     }
 }
 
-void Graph::loadROVASNs(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open ROV file: " + filename);
-    }
-
+static void applyROVFromStream(Graph& graph, std::istream& in) {
     std::string line;
-    while (std::getline(file, line)) {
-        // skip empty lines and comments
+    while (std::getline(in, line)) {
         if (line.empty() || line[0] == '#') continue;
-
-        // strip any trailing whitespace or \r
-        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) {
+        while (!line.empty() && (line.back() == '\r' || line.back() == ' '))
             line.pop_back();
-        }
-
         try {
             uint32_t asn = static_cast<uint32_t>(std::stoul(line));
-            AS* as = getAS(asn);
-            if (as != nullptr) {
-                // replace the default BGP policy with ROV
+            AS* as = graph.getAS(asn);
+            if (as != nullptr)
                 as->policy_ = std::make_unique<ROV>(asn);
-            }
-        } catch (...) {
-            // skip malformed lines
-            continue;
-        }
+        } catch (...) { continue; }
     }
+}
+
+void Graph::loadROVASNs(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open())
+        throw std::runtime_error("Could not open ROV file: " + filename);
+    applyROVFromStream(*this, file);
+}
+
+void Graph::loadROVASNsFromString(const std::string& content) {
+    std::istringstream ss(content);
+    applyROVFromStream(*this, ss);
+}
+
+static std::string relToString(Relationship r) {
+    switch (r) {
+        case Relationship::ORIGIN:   return "ORIGIN";
+        case Relationship::CUSTOMER: return "CUSTOMER";
+        case Relationship::PEER:     return "PEER";
+        case Relationship::PROVIDER: return "PROVIDER";
+    }
+    return "UNKNOWN";
+}
+
+std::string Graph::getResultsAsJSON(uint32_t targetAsn) const {
+    auto it = nodes_.find(targetAsn);
+    if (it == nodes_.end())
+        return "{\"error\":\"AS " + std::to_string(targetAsn) + " not found in topology\"}";
+
+    const auto& rib = it->second->policy_->getRIB();
+    std::string json = "{\"asn\":" + std::to_string(targetAsn) + ",\"results\":[";
+    bool first = true;
+    for (const auto& [prefix, ann] : rib) {
+        if (!first) json += ",";
+        first = false;
+        json += "{\"prefix\":\"" + prefix + "\",\"as_path\":[";
+        for (size_t i = 0; i < ann.asPath_.size(); i++) {
+            if (i > 0) json += ",";
+            json += std::to_string(ann.asPath_[i]);
+        }
+        json += "],\"recv_from\":\"" + relToString(ann.recvFrom_) + "\"}";
+    }
+    json += "]}";
+    return json;
 }

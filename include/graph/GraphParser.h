@@ -32,7 +32,8 @@ struct SeedAnnouncement {
 class GraphParser{
 public:
     static std::vector<ASRelationship> parse(const std::string& filename);
+    static std::vector<ASRelationship> parseFromString(const std::string& content);
 
     static std::vector<SeedAnnouncement> parseAnnouncements(const std::string& filename);
-
+    static std::vector<SeedAnnouncement> parseAnnouncementsFromString(const std::string& content);
 };

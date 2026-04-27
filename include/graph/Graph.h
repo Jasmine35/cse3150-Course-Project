@@ -17,8 +17,8 @@
 
 class Graph{
 public:
-    //builds the graph using the CAIDA
     explicit Graph(const std::string& filename);
+    explicit Graph(const std::vector<ASRelationship>& relationships);
 
     //returna a RAW pointer to the AS, or nullptr is not found
     AS* getAS(uint32_t asn);
@@ -36,6 +36,9 @@ public:
     void dumpCSV(const std::string& filename) const;
 
     void loadROVASNs(const std::string& filename);
+    void loadROVASNsFromString(const std::string& content);
+
+    std::string getResultsAsJSON(uint32_t targetAsn) const;
 
 private:
     //use hash map to keep track of nodes (ASN = key, unique ptr = nodes)

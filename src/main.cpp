@@ -3,6 +3,7 @@
  * orchestrates the full pipeline
  * build graph -> load ROV ASNs -> seed announcements -> propagate -> dump CSV
  * handles cycle-detection error exit code
+ * Usage: bgp_simulator <caida_file> <anns_csv> <rov_asns_file> <output_csv>
  */
 
 #include <iostream>
@@ -11,162 +12,145 @@
 #include "graph/Graph.h"
 #include "bgp/Announcement.h"
 
-int main(int argc, char* argv[]) {
-    /*// check the file opens at all
-    std::ifstream test("/Users/jasmine/Downloads/20161001.as-rel2.txt");
-    if (!test.is_open()) {
-        std::cout << "Could not open file" << std::endl;
-        return 1;
-    }
+//  Helpers
 
-    // print the first 5 lines so we can see the format
-    // print the first 5 NON-comment lines so we can see the real format
+static void printAnnouncement(Graph& g, uint32_t asn, const std::string& prefix) {
+    AS* as = g.getAS(asn);
+    if (as == nullptr) return;
+    const Announcement* ann = as->policy_->getAnnouncement(prefix);
+    if (ann == nullptr) {
+        std::cout << "  AS " << asn << ": no announcement" << std::endl;
+        return;
+    }
+    std::cout << "  AS " << asn << ": path=";
+    for (size_t i = 0; i < ann->asPath_.size(); i++) {
+        if (i > 0) std::cout << " ";
+        std::cout << ann->asPath_[i];
+    }
+    std::cout << " recvFrom=";
+    switch (ann->recvFrom_) {
+        case Relationship::ORIGIN:   std::cout << "ORIGIN";   break;
+        case Relationship::CUSTOMER: std::cout << "CUSTOMER"; break;
+        case Relationship::PEER:     std::cout << "PEER";     break;
+        case Relationship::PROVIDER: std::cout << "PROVIDER"; break;
+    }
+    std::cout << std::endl;
+}
+
+static void writeHomepageTopology(const std::string& path) {
+    std::ofstream f(path);
+    f << "4|666|-1\n";   // AS4 is provider of AS666
+    f << "4|3|-1\n";     // AS4 is provider of AS3
+    f << "777|4|0\n";    // AS777 peers with AS4
+    f.close();
+}
+
+// File open + format check
+
+static void phase1_fileCheck(const std::string& caidaFile) {
+    std::cout << "\n========== Phase 1: File Open + Format Check ==========" << std::endl;
+
+    std::ifstream test(caidaFile);
+    if (!test.is_open()) {
+        std::cerr << "  [FAIL] Could not open file: " << caidaFile << std::endl;
+        return;
+    }
+    std::cout << "  [OK] Opened: " << caidaFile << std::endl;
+
     std::string line;
     int count = 0;
+    std::cout << "  First 5 non-comment data lines:" << std::endl;
     while (std::getline(test, line) && count < 5) {
         if (!line.empty() && line[0] != '#') {
-            std::cout << "Data line: [" << line << "]" << std::endl;
+            std::cout << "    [" << line << "]" << std::endl;
             count++;
         }
     }
     test.close();
+    std::cout << "  Phase 1 complete." << std::endl;
+}
 
-    // now try loading the graph
-    Graph g("/Users/jasmine/Downloads/20161001.as-rel2.txt");
-    std::cout << "Loaded " << g.size() << " AS nodes" << std::endl;*/
+// Homepage example, no ROV
 
-   /* // build the bgpsimulator.com homepage example
-    // write it to a temp file
-    std::ofstream f("../data/homepage_test.txt");
-    f << "4|666|-1\n";   // AS4 provider of AS666
-    f << "4|3|-1\n";     // AS4 provider of AS3
-    f << "777|4|0\n";    // AS777 peers with AS4
-    f.close();
+static void phase2_homepageNoROV() {
+    std::cout << "\n========== Phase 2: Homepage Example (no ROV) ==========" << std::endl;
 
-    Graph g("../data/homepage_test.txt");
+    const std::string topoPath = "../data/homepage_test.txt";
+    const std::string prefix   = "1.2.0.0/16";
+    writeHomepageTopology(topoPath);
 
-    // AS777 is legitimate owner
-    Announcement legitimate("1.2.0.0/16", {777}, 777, Relationship::ORIGIN);
+    Graph g(topoPath);
+
+    Announcement legitimate(prefix, {777}, 777, Relationship::ORIGIN);
     g.seedAnnouncement(777, legitimate);
 
-    // AS666 hijacks
-    Announcement hijack("1.2.0.0/16", {666}, 666, Relationship::ORIGIN);
+    Announcement hijack(prefix, {666}, 666, Relationship::ORIGIN);
     g.seedAnnouncement(666, hijack);
 
     g.propagate();
 
-    // print what each AS thinks the best path is
-    uint32_t asns[] = {3, 4, 666, 777};
-    for (uint32_t asn : asns) {
-        AS* as = g.getAS(asn);
-        if (as == nullptr) continue;
-        const Announcement* ann = as->policy_->getAnnouncement("1.2.0.0/16");
-        if (ann == nullptr) {
-            std::cout << "AS " << asn << ": no announcement" << std::endl;
-            continue;
-        }
-        std::cout << "AS " << asn << ": path=";
-        for (size_t i = 0; i < ann->asPath_.size(); i++) {
-            if (i > 0) std::cout << " ";
-            std::cout << ann->asPath_[i];
-        }
-        std::cout << " recvFrom=";
-        switch (ann->recvFrom_) {
-            case Relationship::ORIGIN:   std::cout << "ORIGIN"; break;
-            case Relationship::CUSTOMER: std::cout << "CUSTOMER"; break;
-            case Relationship::PEER:     std::cout << "PEER"; break;
-            case Relationship::PROVIDER: std::cout << "PROVIDER"; break;
-        }
-        std::cout << std::endl;
-    }*/
+    std::cout << "  Results for prefix " << prefix << ":" << std::endl;
+    for (uint32_t asn : {3u, 4u, 666u, 777u})
+        printAnnouncement(g, asn, prefix);
 
-    // build the bgpsimulator.com homepage example
-    /*std::ofstream f("../data/homepage_test.txt");
-    f << "4|666|-1\n";
-    f << "4|3|-1\n";
-    f << "777|4|0\n";
-    f.close();
+    std::cout << "  Phase 2 complete." << std::endl;
+}
 
-    Graph g("../data/homepage_test.txt");
+// Homepage example, with ROV
 
-    // make AS 4 deploy ROV
-    g.loadROVASNs("../data/test_rov_asns.txt");
+static void phase3_homepageWithROV() {
+    std::cout << "\n========== Phase 3: Homepage Example (with ROV) ==========" << std::endl;
 
-    // AS777 legitimate announcement
-    Announcement legitimate("1.2.0.0/16", {777}, 777, Relationship::ORIGIN);
+    const std::string topoPath = "../data/homepage_test.txt";
+    const std::string rovPath  = "../data/test_rov_asns.txt";
+    const std::string prefix   = "1.2.0.0/16";
+    writeHomepageTopology(topoPath);
+
+    Graph g(topoPath);
+    g.loadROVASNs(rovPath);   // AS4 deploys ROV
+
+    Announcement legitimate(prefix, {777}, 777, Relationship::ORIGIN);
     g.seedAnnouncement(777, legitimate);
 
-    // AS666 hijack - marked as rov_invalid
-    Announcement hijack("1.2.0.0/16", {666}, 666, Relationship::ORIGIN, true);
+    // Marked rov_invalid so ROV-deploying ASes will drop it
+    Announcement hijack(prefix, {666}, 666, Relationship::ORIGIN, /*rov_invalid=*/true);
     g.seedAnnouncement(666, hijack);
 
     g.propagate();
 
-    // print results
-    uint32_t asns[] = {3, 4, 666, 777};
-    for (uint32_t asn : asns) {
-        AS* as = g.getAS(asn);
-        if (as == nullptr) continue;
-        const Announcement* ann = as->policy_->getAnnouncement("1.2.0.0/16");
-        if (ann == nullptr) {
-            std::cout << "AS " << asn << ": no announcement" << std::endl;
-            continue;
-        }
-        std::cout << "AS " << asn << ": path=";
-        for (size_t i = 0; i < ann->asPath_.size(); i++) {
-            if (i > 0) std::cout << " ";
-            std::cout << ann->asPath_[i];
-        }
-        std::cout << " recvFrom=";
-        switch (ann->recvFrom_) {
-            case Relationship::ORIGIN:   std::cout << "ORIGIN"; break;
-            case Relationship::CUSTOMER: std::cout << "CUSTOMER"; break;
-            case Relationship::PEER:     std::cout << "PEER"; break;
-            case Relationship::PROVIDER: std::cout << "PROVIDER"; break;
-        }
-        std::cout << std::endl;
-    }*/
+    std::cout << "  Results for prefix " << prefix << ":" << std::endl;
+    for (uint32_t asn : {3u, 4u, 666u, 777u})
+        printAnnouncement(g, asn, prefix);
 
+    std::cout << "  Phase 3 complete." << std::endl;
+}
 
-    //testing the simulator on the real/given datasets
-    if (argc < 5) {
-        std::cerr << "Usage: bgp_simulator <caida_file> <anns_csv> <rov_asns_file> <output_csv>" << std::endl;
-        return 1;
-    }
+// Real CAIDA datasets, full pipeline
 
-    std::string caidaFile  = argv[1];
-    std::string annsFile   = argv[2];
-    std::string rovFile    = argv[3];
-    std::string outputFile = argv[4];
+static void phase4_realDatasets(const std::string& caidaFile,
+                                 const std::string& annsFile,
+                                 const std::string& rovFile,
+                                 const std::string& outputFile) {
+    std::cout << "\n========== Phase 4: Real CAIDA Datasets ==========" << std::endl;
 
-    std::cout << "Loading graph..." << std::endl;
+    std::cout << "  Loading graph..." << std::endl;
     Graph g(caidaFile);
-    std::cout << "Loaded " << g.size() << " AS nodes" << std::endl;
+    std::cout << "  Loaded " << g.size() << " AS nodes." << std::endl;
 
-    AS* as15830 = g.getAS(15830);
-    AS* as25 = g.getAS(25);
-    AS* as27 = g.getAS(27);
-
-    if (as15830) std::cout << "AS 15830 rank=" << as15830->propagation_rank_ << std::endl;
-    if (as25)    std::cout << "AS 25 rank="    << as25->propagation_rank_    << std::endl;
-    if (as27)    std::cout << "AS 27 rank="    << as27->propagation_rank_    << std::endl;
-
-    if (as15830) {
-        std::cout << "AS 15830 providers: ";
-        for (auto p : as15830->providers_) std::cout << p << " ";
-        std::cout << std::endl;
-        std::cout << "AS 15830 customers: ";
-        for (auto c : as15830->customers_) std::cout << c << " ";
-        std::cout << std::endl;
-        std::cout << "AS 15830 peers: ";
-        for (auto p : as15830->peers_) std::cout << p << " ";
-        std::cout << std::endl;
+    // Spot-check a few ASes
+    for (uint32_t probe : {15830u, 25u, 27u}) {
+        AS* as = g.getAS(probe);
+        if (!as) continue;
+        std::cout << "  AS " << probe << " rank=" << as->propagation_rank_
+                  << "  providers=" << as->providers_.size()
+                  << "  customers=" << as->customers_.size()
+                  << "  peers="     << as->peers_.size()    << std::endl;
     }
 
-    std::cout << "Loading ROV ASNs..." << std::endl;
+    std::cout << "  Loading ROV ASNs from " << rovFile << "..." << std::endl;
     g.loadROVASNs(rovFile);
 
-    std::cout << "Seeding announcements..." << std::endl;
+    std::cout << "  Seeding announcements from " << annsFile << "..." << std::endl;
     auto seedAnns = GraphParser::parseAnnouncements(annsFile);
     for (const auto& seed : seedAnns) {
         Announcement ann(
@@ -177,19 +161,39 @@ int main(int argc, char* argv[]) {
             seed.rovInvalid_
         );
         g.seedAnnouncement(seed.seedAsn_, ann);
-        std::cout << "  Seeded AS " << seed.seedAsn_
-                  << " prefix " << seed.prefix_
-                  << " rov_invalid=" << seed.rovInvalid_ << std::endl;
+        std::cout << "    Seeded AS " << seed.seedAsn_
+                  << "  prefix=" << seed.prefix_
+                  << "  rov_invalid=" << seed.rovInvalid_ << std::endl;
     }
 
-    std::cout << "Propagating..." << std::endl;
+    std::cout << "  Propagating..." << std::endl;
     g.propagate();
 
-    std::cout << "Dumping CSV..." << std::endl;
+    std::cout << "  Dumping CSV to " << outputFile << "..." << std::endl;
     g.dumpCSV(outputFile);
 
-    std::cout << "Done." << std::endl;
-    return 0;
+    std::cout << "  Phase 4 complete." << std::endl;
 }
 
+int main(int argc, char* argv[]){
 
+    if (argc < 5) {
+        std::cerr << "Usage: bgp_simulator <caida_file> <anns_csv> <rov_asns_file> <output_csv>"
+                  << std::endl;
+        return 1;
+    }
+
+    const std::string caidaFile  = argv[1];
+    const std::string annsFile   = argv[2];
+    const std::string rovFile    = argv[3];
+    const std::string outputFile = argv[4];
+
+    phase1_fileCheck(caidaFile);
+    phase2_homepageNoROV();
+    phase3_homepageWithROV();
+    phase4_realDatasets(caidaFile, annsFile, rovFile, outputFile);
+
+    std::cout << "\nAll phases complete." << std::endl;
+
+    return 0;
+}
