@@ -47,10 +47,15 @@
 - I also added a loadROVASNs function to the Graph that loads the ROV ASNs from file and assign the ROV policy to the ASes
 
 7. Integration and cleanup
-- After each pahse, I implemented unit tests within the test folder in my program to make sure I was on the right step
-- After everything was implemented, I copied the datasets from bench (given) and the comparison file to truly test my output
-- Note all tests passed (my guess would be because of my tiebreaker logic) and ghe path sotrd in the RIB is getting mutated
-- If I had more time for this project, I would try to debug starting from there first
+- After each phase, I implemented unit tests within the test folder in my program to make sure I was on the right step
+- I then tested everything with the given bench data
+- The main fix was that for BGP logic, a longer path can still win if it arrives via a more-preferred relationship (customer > peer > provider). I found out that my old code was picking shorter paths that came via provider/peer relationships when it should have been preferring a longer path received from a customer.
 
-8. (HONORS CONVERSION) use WASm to put this simulator on a website with a real domain name so simulations can be purely run client-side - using Cloudfare pages
-
+8. (HONORS CONVERSION) use WASM to put this simulator on a website with a real domain name so simulations can be purely run client-side - using Cloudfare pages
+- To implement this, I first installed Emscripten which is a compiler toolchain that helps turn the C++ code into the .wasm with javascript
+- I then changed the main file, Graph, and GraphParser fies to accept std::string (the raw file) - this was the hardest change because it involeved going back through the code and finding where the Graph needed to take the raw std::string values
+- I then made an emcc commmand which would produce bgp_simulator.js and bgp_simulator.wasm that would go into my /web file
+- I then made a frontend in web/index.html file
+- I made sure to integrate the avility to upload a CAIDA topology file, upload announcement CSV, and ROV ASNs (which are optional) and a target ASN and then have it run the simulator
+- I then used Cloudfare to deploy my page with a custom domain
+- domain: https://bgpsimulator-jy.com/
