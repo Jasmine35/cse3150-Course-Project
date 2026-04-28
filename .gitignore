@@ -1,0 +1,9 @@
+# Build artifacts
+build/
+wasm/build/
+
+# Test temp files generated at runtime
+test_*.txt
+
+# macOS
+.DS_Store
